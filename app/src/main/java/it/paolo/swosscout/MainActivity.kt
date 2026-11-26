@@ -4,7 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +37,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,7 +57,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -314,7 +315,7 @@ fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
                 }
             }
 
-            SectionTitle("Livello abilità (0–7)")
+            SectionTitle("Livello abilità (tocca Min e Max)")
             SKILL_CODES.forEachIndexed { i, c ->
                 SkillRange("$c · ${SKILL_NAMES[i]}", f.skillRanges[i]) { r ->
                     val cur = vm.filters
@@ -384,20 +385,50 @@ fun SectionTitle(text: String) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SkillRange(label: String, range: IntRange, onChange: (IntRange) -> Unit) {
-    Column(Modifier.fillMaxWidth()) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         Row(Modifier.fillMaxWidth()) {
             Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            Text("${range.first}–${range.last}", fontWeight = FontWeight.Bold)
+            Text(
+                if (range == 0..7) "tutti" else "${range.first}–${range.last}",
+                fontWeight = FontWeight.Bold
+            )
         }
-        RangeSlider(
-            value = range.first.toFloat()..range.last.toFloat(),
-            onValueChange = { r -> onChange(r.start.roundToInt()..r.endInclusive.roundToInt()) },
-            valueRange = 0f..7f,
-            steps = 6
-        )
+        Spacer(Modifier.height(4.dp))
+        LevelRow("Min", range.first) { v -> onChange(v..maxOf(v, range.last)) }
+        Spacer(Modifier.height(4.dp))
+        LevelRow("Max", range.last) { v -> onChange(minOf(v, range.first)..v) }
+    }
+}
+
+@Composable
+fun LevelRow(title: String, selected: Int, onPick: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, Modifier.width(36.dp), style = MaterialTheme.typography.bodySmall)
+        for (v in 0..7) {
+            val isSel = v == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 2.dp)
+                    .height(38.dp)
+                    .background(
+                        if (isSel) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceVariant,
+                        RoundedCornerShape(8.dp)
+                    )
+                    .clickable { onPick(v) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    v.toString(),
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSel) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
