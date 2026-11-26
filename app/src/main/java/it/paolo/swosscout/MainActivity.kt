@@ -4,10 +4,21 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,33 +27,36 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,13 +64,25 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,7 +91,8 @@ class MainActivity : ComponentActivity() {
             SwosTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.onBackground
                 ) {
                     AppRoot()
                 }
@@ -75,32 +102,137 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun SwosTheme(content: @Composable () -> Unit) {
-    val colors = if (isSystemInDarkTheme()) {
-        darkColorScheme(primary = Color(0xFF81C784), onPrimary = Color(0xFF003910))
-    } else {
-        lightColorScheme(primary = Color(0xFF2E7D32))
-    }
-    MaterialTheme(colorScheme = colors, content = content)
-}
-
-@Composable
 fun AppRoot(vm: MainViewModel = viewModel()) {
     var showFilters by rememberSaveable { mutableStateOf(false) }
+    var splashDone by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(2300)
+        splashDone = true
+    }
     BackHandler(enabled = showFilters) { showFilters = false }
 
-    if (vm.loading) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+    val showSplash = !splashDone || vm.loading
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(BgTop, BgBottom)))
+    ) {
+        Crossfade(targetState = showSplash, animationSpec = tween(600), label = "root") { splash ->
+            if (splash) {
+                SplashScreen()
+            } else if (vm.error != null) {
+                Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                    Text("Errore: ${vm.error}")
+                }
+            } else if (showFilters) {
+                FilterScreen(vm) { showFilters = false }
+            } else {
+                ListScreen(vm) { showFilters = true }
+            }
         }
-    } else if (vm.error != null) {
-        Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-            Text("Errore: ${vm.error}")
+    }
+}
+
+// ---------------------------------------------------------------- Splash
+
+@Composable
+fun SplashScreen() {
+    val inf = rememberInfiniteTransition(label = "splash")
+    val angle by inf.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(2600, easing = LinearEasing)),
+        label = "angle"
+    )
+    val pulse by inf.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
+        label = "pulse"
+    )
+    val logoScale = remember { Animatable(0.4f) }
+    val logoAlpha = remember { Animatable(0f) }
+    val titleAlpha = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { logoAlpha.animateTo(1f, tween(600)) }
+    LaunchedEffect(Unit) { logoScale.animateTo(1f, tween(900, easing = FastOutSlowInEasing)) }
+    LaunchedEffect(Unit) {
+        delay(500)
+        titleAlpha.animateTo(1f, tween(800))
+    }
+
+    Column(
+        Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            Modifier
+                .size(240.dp)
+                .graphicsLayer {
+                    scaleX = logoScale.value
+                    scaleY = logoScale.value
+                    this.alpha = logoAlpha.value
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(Modifier.fillMaxSize().rotate(angle)) {
+                val w = 5.dp.toPx()
+                val arcSize = Size(size.width - 2 * w, size.height - 2 * w)
+                drawCircle(
+                    color = NeonCyan.copy(alpha = 0.12f),
+                    style = Stroke(width = 2.dp.toPx())
+                )
+                drawArc(
+                    color = NeonCyan,
+                    startAngle = 0f,
+                    sweepAngle = 110f,
+                    useCenter = false,
+                    topLeft = Offset(w, w),
+                    size = arcSize,
+                    style = Stroke(width = w, cap = StrokeCap.Round)
+                )
+                drawArc(
+                    color = NeonPink,
+                    startAngle = 180f,
+                    sweepAngle = 60f,
+                    useCenter = false,
+                    topLeft = Offset(w, w),
+                    size = arcSize,
+                    style = Stroke(width = w, cap = StrokeCap.Round)
+                )
+            }
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = null,
+                modifier = Modifier.size(170.dp)
+            )
         }
-    } else if (showFilters) {
-        FilterScreen(vm) { showFilters = false }
-    } else {
-        ListScreen(vm) { showFilters = true }
+        Spacer(Modifier.height(24.dp))
+        Text(
+            "SWOS//SCOUT",
+            color = NeonCyan,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            fontSize = 28.sp,
+            letterSpacing = 4.sp,
+            modifier = Modifier.graphicsLayer { this.alpha = titleAlpha.value }
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "SCANNING PLAYER DATABASE",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 12.sp,
+            letterSpacing = 2.sp,
+            modifier = Modifier.alpha(pulse)
+        )
+        Spacer(Modifier.height(28.dp))
+        LinearProgressIndicator(
+            modifier = Modifier.width(180.dp).clip(RoundedCornerShape(2.dp)),
+            color = NeonCyan,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     }
 }
 
@@ -113,6 +245,25 @@ fun ListScreen(vm: MainViewModel, onOpenFilters: () -> Unit) {
 
     Column(Modifier.fillMaxSize()) {
         Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = null,
+                modifier = Modifier.size(40.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                "SWOS//SCOUT",
+                color = NeonCyan,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                letterSpacing = 3.sp
+            )
+        }
+        Row(
             Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -121,18 +272,25 @@ fun ListScreen(vm: MainViewModel, onOpenFilters: () -> Unit) {
                 onValueChange = { vm.updateFilters(vm.filters.copy(query = it)) },
                 label = { Text("Cerca giocatore") },
                 singleLine = true,
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.weight(1f)
             )
             Spacer(Modifier.width(8.dp))
             val n = f.activeCount()
-            Button(onClick = onOpenFilters) { Text(if (n > 0) "Filtri ($n)" else "Filtri") }
+            Button(
+                onClick = onOpenFilters,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.height(56.dp)
+            ) { Text(if (n > 0) "FILTRI ($n)" else "FILTRI", fontWeight = FontWeight.Bold) }
         }
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "${vm.results.size} di ${vm.totalPlayers}",
+                "${vm.results.size} / ${vm.totalPlayers}",
+                color = NeonGreen,
+                fontFamily = FontFamily.Monospace,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f)
             )
@@ -175,46 +333,75 @@ fun ListScreen(vm: MainViewModel, onOpenFilters: () -> Unit) {
 
 @Composable
 fun PlayerCard(p: Player) {
-    Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
-        Column(Modifier.padding(12.dp)) {
+    val accent = posColor(p.position)
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(
+            1.dp,
+            Brush.horizontalGradient(listOf(accent.copy(alpha = 0.8f), accent.copy(alpha = 0.08f)))
+        )
+    ) {
+        Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    p.name,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    p.position,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Text(
-                "${p.club} (${p.country}) · #${p.number} · ${p.nationality}",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth()) {
-                SKILL_CODES.forEachIndexed { i, c ->
-                    SkillCell(c, p.skills[i], Modifier.weight(1f))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        p.name,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        "${p.club} · ${p.country}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "#${p.number} · ${p.nationality}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Box(
+                    Modifier
+                        .background(accent.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                        .border(1.dp, accent, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        p.position,
+                        color = accent,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth()) {
+                SKILL_CODES.forEachIndexed { i, c ->
+                    SkillBar(c, p.skills[i], Modifier.weight(1f))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth()) {
                 Text(
-                    "Tot ${p.total}",
+                    "TOT ${p.total}",
+                    fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    if (p.keySkills.isEmpty()) "" else "Chiave: ${p.keySkills}",
+                    if (p.keySkills.isEmpty()) "" else "KEY ${p.keySkills}",
+                    color = NeonPink,
+                    fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    "Valore ${formatValue(p.valueK)}",
+                    formatValue(p.valueK),
+                    color = NeonGreen,
+                    fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.End,
                     modifier = Modifier.weight(1f)
@@ -225,19 +412,45 @@ fun PlayerCard(p: Player) {
 }
 
 @Composable
-fun SkillCell(code: Char, value: Int, modifier: Modifier) {
+fun SkillBar(code: Char, value: Int, modifier: Modifier) {
     val color = when {
-        value >= 6 -> MaterialTheme.colorScheme.primary
-        value == 0 -> MaterialTheme.colorScheme.outline
-        else -> MaterialTheme.colorScheme.onSurface
+        value >= 6 -> NeonPink
+        value >= 4 -> NeonGreen
+        value >= 1 -> NeonCyan
+        else -> MaterialTheme.colorScheme.outline
     }
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             code.toString(),
             fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Text(value.toString(), fontWeight = FontWeight.Bold, fontSize = 18.sp, color = color)
+        Spacer(Modifier.height(4.dp))
+        Box(
+            Modifier
+                .width(12.dp)
+                .height(40.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            if (value > 0) {
+                Box(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .fillMaxHeight(value / 7f)
+                        .background(color)
+                )
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            value.toString(),
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            color = color
+        )
     }
 }
 
@@ -250,12 +463,16 @@ fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
 
     Column(Modifier.fillMaxSize()) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Filtri",
-                style = MaterialTheme.typography.titleLarge,
+                "FILTRI",
+                color = NeonCyan,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                letterSpacing = 3.sp,
                 modifier = Modifier.weight(1f)
             )
             TextButton(onClick = {
@@ -265,7 +482,7 @@ fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
         }
 
         Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)
         ) {
             SectionTitle("Ruolo")
             FlowRow(
@@ -290,7 +507,8 @@ fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
             }
             Text(
                 "G portiere · D difensore · RB/LB terzini · M centrocampista · RW/LW ali · A attaccante",
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             SectionTitle("Abilità chiave (le deve avere tutte)")
@@ -371,17 +589,22 @@ fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
 
         Button(
             onClick = onClose,
-            modifier = Modifier.fillMaxWidth().padding(12.dp)
-        ) { Text("Mostra ${vm.results.size} giocatori") }
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth().padding(12.dp).height(52.dp)
+        ) { Text("MOSTRA ${vm.results.size} GIOCATORI", fontWeight = FontWeight.Bold) }
     }
 }
 
 @Composable
 fun SectionTitle(text: String) {
     Text(
-        text,
-        style = MaterialTheme.typography.titleSmall,
-        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+        text.uppercase(),
+        color = NeonCyan,
+        fontFamily = FontFamily.Monospace,
+        fontWeight = FontWeight.Bold,
+        fontSize = 12.sp,
+        letterSpacing = 1.5.sp,
+        modifier = Modifier.padding(top = 20.dp, bottom = 6.dp)
     )
 }
 
@@ -392,7 +615,9 @@ fun SkillRange(label: String, range: IntRange, onChange: (IntRange) -> Unit) {
             Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             Text(
                 if (range == 0..7) "tutti" else "${range.first}–${range.last}",
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = NeonGreen,
+                fontFamily = FontFamily.Monospace
             )
         }
         Spacer(Modifier.height(4.dp))
@@ -441,7 +666,11 @@ fun PickerField(
     onSelect: (String?) -> Unit
 ) {
     var open by remember { mutableStateOf(false) }
-    OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
+    OutlinedButton(
+        onClick = { open = true },
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Text("$label: ${value ?: allLabel}")
     }
     if (open) {
