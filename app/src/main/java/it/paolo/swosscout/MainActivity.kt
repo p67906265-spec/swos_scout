@@ -106,7 +106,7 @@ fun AppRoot(vm: MainViewModel = viewModel()) {
     var showFilters by rememberSaveable { mutableStateOf(false) }
     var splashDone by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(2300)
+        delay(2500)
         splashDone = true
     }
     BackHandler(enabled = showFilters) { showFilters = false }
@@ -131,108 +131,6 @@ fun AppRoot(vm: MainViewModel = viewModel()) {
                 ListScreen(vm) { showFilters = true }
             }
         }
-    }
-}
-
-// ---------------------------------------------------------------- Splash
-
-@Composable
-fun SplashScreen() {
-    val inf = rememberInfiniteTransition(label = "splash")
-    val angle by inf.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(2600, easing = LinearEasing)),
-        label = "angle"
-    )
-    val pulse by inf.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
-        label = "pulse"
-    )
-    val logoScale = remember { Animatable(0.4f) }
-    val logoAlpha = remember { Animatable(0f) }
-    val titleAlpha = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { logoAlpha.animateTo(1f, tween(600)) }
-    LaunchedEffect(Unit) { logoScale.animateTo(1f, tween(900, easing = FastOutSlowInEasing)) }
-    LaunchedEffect(Unit) {
-        delay(500)
-        titleAlpha.animateTo(1f, tween(800))
-    }
-
-    Column(
-        Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            Modifier
-                .size(240.dp)
-                .graphicsLayer {
-                    scaleX = logoScale.value
-                    scaleY = logoScale.value
-                    this.alpha = logoAlpha.value
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Canvas(Modifier.fillMaxSize().rotate(angle)) {
-                val w = 5.dp.toPx()
-                val arcSize = Size(size.width - 2 * w, size.height - 2 * w)
-                drawCircle(
-                    color = NeonCyan.copy(alpha = 0.12f),
-                    style = Stroke(width = 2.dp.toPx())
-                )
-                drawArc(
-                    color = NeonCyan,
-                    startAngle = 0f,
-                    sweepAngle = 110f,
-                    useCenter = false,
-                    topLeft = Offset(w, w),
-                    size = arcSize,
-                    style = Stroke(width = w, cap = StrokeCap.Round)
-                )
-                drawArc(
-                    color = NeonPink,
-                    startAngle = 180f,
-                    sweepAngle = 60f,
-                    useCenter = false,
-                    topLeft = Offset(w, w),
-                    size = arcSize,
-                    style = Stroke(width = w, cap = StrokeCap.Round)
-                )
-            }
-            Image(
-                painter = painterResource(R.drawable.ic_launcher_foreground),
-                contentDescription = null,
-                modifier = Modifier.size(170.dp)
-            )
-        }
-        Spacer(Modifier.height(24.dp))
-        Text(
-            "SWOS//SCOUT",
-            color = NeonCyan,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            fontSize = 28.sp,
-            letterSpacing = 4.sp,
-            modifier = Modifier.graphicsLayer { this.alpha = titleAlpha.value }
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "SCANNING PLAYER DATABASE",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 12.sp,
-            letterSpacing = 2.sp,
-            modifier = Modifier.alpha(pulse)
-        )
-        Spacer(Modifier.height(28.dp))
-        LinearProgressIndicator(
-            modifier = Modifier.width(180.dp).clip(RoundedCornerShape(2.dp)),
-            color = NeonCyan,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
     }
 }
 
