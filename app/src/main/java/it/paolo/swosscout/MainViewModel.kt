@@ -55,7 +55,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun setFilters(f: Filters) {
+    fun updateFilters(f: Filters) {
         filters = f
         refilter(120)
     }

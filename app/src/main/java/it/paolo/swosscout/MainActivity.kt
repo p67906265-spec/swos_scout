@@ -117,7 +117,7 @@ fun ListScreen(vm: MainViewModel, onOpenFilters: () -> Unit) {
         ) {
             OutlinedTextField(
                 value = f.query,
-                onValueChange = { vm.setFilters(vm.filters.copy(query = it)) },
+                onValueChange = { vm.updateFilters(vm.filters.copy(query = it)) },
                 label = { Text("Cerca giocatore") },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
@@ -162,7 +162,7 @@ fun ListScreen(vm: MainViewModel, onOpenFilters: () -> Unit) {
             onPick = { i ->
                 val cur = vm.filters
                 val field = fields[i]
-                vm.setFilters(
+                vm.updateFilters(
                     if (field == cur.sortBy) cur.copy(sortDesc = !cur.sortDesc)
                     else cur.copy(sortBy = field, sortDesc = field != SortField.NAME)
                 )
@@ -259,7 +259,7 @@ fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
             )
             TextButton(onClick = {
                 val cur = vm.filters
-                vm.setFilters(Filters(query = cur.query, sortBy = cur.sortBy, sortDesc = cur.sortDesc))
+                vm.updateFilters(Filters(query = cur.query, sortBy = cur.sortBy, sortDesc = cur.sortDesc))
             }) { Text("Azzera") }
         }
 
@@ -276,7 +276,7 @@ fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
                         selected = pos in f.positions,
                         onClick = {
                             val cur = vm.filters
-                            vm.setFilters(
+                            vm.updateFilters(
                                 cur.copy(
                                     positions = if (pos in cur.positions) cur.positions - pos
                                     else cur.positions + pos
@@ -302,7 +302,7 @@ fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
                         selected = c in f.keySkills,
                         onClick = {
                             val cur = vm.filters
-                            vm.setFilters(
+                            vm.updateFilters(
                                 cur.copy(
                                     keySkills = if (c in cur.keySkills) cur.keySkills - c
                                     else cur.keySkills + c
@@ -318,7 +318,7 @@ fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
             SKILL_CODES.forEachIndexed { i, c ->
                 SkillRange("$c · ${SKILL_NAMES[i]}", f.skillRanges[i]) { r ->
                     val cur = vm.filters
-                    vm.setFilters(
+                    vm.updateFilters(
                         cur.copy(skillRanges = cur.skillRanges.toMutableList().also { it[i] = r })
                     )
                 }
@@ -329,7 +329,7 @@ fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
                 OutlinedTextField(
                     value = f.valueMin,
                     onValueChange = { s ->
-                        vm.setFilters(vm.filters.copy(valueMin = s.filter { it.isDigit() }))
+                        vm.updateFilters(vm.filters.copy(valueMin = s.filter { it.isDigit() }))
                     },
                     label = { Text("Min") },
                     singleLine = true,
@@ -340,7 +340,7 @@ fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
                 OutlinedTextField(
                     value = f.valueMax,
                     onValueChange = { s ->
-                        vm.setFilters(vm.filters.copy(valueMax = s.filter { it.isDigit() }))
+                        vm.updateFilters(vm.filters.copy(valueMax = s.filter { it.isDigit() }))
                     },
                     label = { Text("Max") },
                     singleLine = true,
@@ -352,18 +352,18 @@ fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
             SectionTitle("Squadra e provenienza")
             OutlinedTextField(
                 value = f.club,
-                onValueChange = { vm.setFilters(vm.filters.copy(club = it)) },
+                onValueChange = { vm.updateFilters(vm.filters.copy(club = it)) },
                 label = { Text("Nome squadra") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(8.dp))
             PickerField("Paese del club", f.country, vm.countries, "Tutti") {
-                vm.setFilters(vm.filters.copy(country = it))
+                vm.updateFilters(vm.filters.copy(country = it))
             }
             Spacer(Modifier.height(8.dp))
             PickerField("Nazionalità", f.nationality, vm.nationalities, "Tutte") {
-                vm.setFilters(vm.filters.copy(nationality = it))
+                vm.updateFilters(vm.filters.copy(nationality = it))
             }
             Spacer(Modifier.height(16.dp))
         }
