@@ -27,6 +27,9 @@ class Player(
     val total: Int = skills.sum()
     val nameLower: String = name.lowercase()
     val clubLower: String = club.lowercase()
+
+    /** Chiave stabile del giocatore, usata per preferiti e valori modificati. */
+    val id: String = "$country|$club|$number|$name"
 }
 
 enum class SortField(val label: String) {
@@ -53,7 +56,8 @@ data class Filters(
     val valueMin: String = "",
     val valueMax: String = "",
     val sortBy: SortField = SortField.VALUE,
-    val sortDesc: Boolean = true
+    val sortDesc: Boolean = true,
+    val onlyFavorites: Boolean = false
 ) {
     /** Numero di filtri attivi (la ricerca per nome e l'ordinamento non contano). */
     fun activeCount(): Int = listOf(
@@ -133,27 +137,34 @@ fun parseCsv(input: InputStream): List<Player> {
     return out
 }
 
-fun applyFilters(all: List<Player>, f: Filters): List<Player> {
+fun applyFilters(
+    all: List<Player>,
+    f: Filters,
+    favorites: Set<String> = emptySet(),
+    overrides: Map<String, Int> = emptyMap()
+): List<Player> {
     val q = f.query.trim().lowercase()
     val club = f.club.trim().lowercase()
     val vMin = f.valueMin.trim().toIntOrNull()
     val vMax = f.valueMax.trim().toIntOrNull()
 
     val filtered = all.filter { pl ->
-        (q.isEmpty() || pl.nameLower.contains(q)) &&
+        val value = overrides[pl.id] ?: pl.valueK
+        (!f.onlyFavorites || pl.id in favorites) &&
+            (q.isEmpty() || pl.nameLower.contains(q)) &&
             (club.isEmpty() || pl.clubLower.contains(club)) &&
             (f.country == null || pl.country == f.country) &&
             (f.nationality == null || pl.nationality == f.nationality) &&
             (f.positions.isEmpty() || pl.position in f.positions) &&
             f.keySkills.all { it in pl.keySkills } &&
             (0 until 7).all { i -> pl.skills[i] in f.skillRanges[i] } &&
-            (vMin == null || pl.valueK >= vMin) &&
-            (vMax == null || pl.valueK <= vMax)
+            (vMin == null || value >= vMin) &&
+            (vMax == null || value <= vMax)
     }
 
     val cmp: Comparator<Player> = when (f.sortBy) {
         SortField.NAME -> compareBy<Player> { it.nameLower }
-        SortField.VALUE -> compareBy<Player> { it.valueK }.thenBy { it.nameLower }
+        SortField.VALUE -> compareBy<Player> { overrides[it.id] ?: it.valueK }.thenBy { it.nameLower }
         SortField.TOTAL -> compareBy<Player> { it.total }.thenBy { it.nameLower }
         SortField.P -> compareBy<Player> { it.skills[0] }.thenBy { it.nameLower }
         SortField.V -> compareBy<Player> { it.skills[1] }.thenBy { it.nameLower }

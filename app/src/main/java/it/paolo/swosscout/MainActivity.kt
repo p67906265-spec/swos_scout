@@ -136,10 +136,12 @@ fun AppRoot(vm: MainViewModel = viewModel()) {
 
 // ---------------------------------------------------------------- Lista
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListScreen(vm: MainViewModel, onOpenFilters: () -> Unit) {
     val f = vm.filters
     var sortDialog by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<Player?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -182,6 +184,19 @@ fun ListScreen(vm: MainViewModel, onOpenFilters: () -> Unit) {
             ) { Text(if (n > 0) "FILTRI ($n)" else "FILTRI", fontWeight = FontWeight.Bold) }
         }
         Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilterChip(
+                selected = f.onlyFavorites,
+                onClick = {
+                    val cur = vm.filters
+                    vm.updateFilters(cur.copy(onlyFavorites = !cur.onlyFavorites))
+                },
+                label = { Text("★ Solo preferiti (${vm.favorites.size})") }
+            )
+        }
+        Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -193,7 +208,13 @@ fun ListScreen(vm: MainViewModel, onOpenFilters: () -> Unit) {
                 modifier = Modifier.weight(1f)
             )
             TextButton(onClick = { sortDialog = true }) {
-                Text("Ordina: ${f.sortBy.label} ${if (f.sortDesc) "↓" else "↑"}")
+                Text("Ordina: ${f.sortBy.label}")
+            }
+            TextButton(onClick = {
+                val cur = vm.filters
+                vm.updateFilters(cur.copy(sortDesc = !cur.sortDesc))
+            }) {
+                Text(if (f.sortDesc) "↓ Decr." else "↑ Cresc.", fontWeight = FontWeight.Bold)
             }
         }
         if (vm.results.isEmpty()) {
@@ -207,8 +228,27 @@ fun ListScreen(vm: MainViewModel, onOpenFilters: () -> Unit) {
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
-            items(vm.results) { p -> PlayerCard(p) }
+            items(vm.results) { p ->
+                PlayerCard(
+                    p = p,
+                    isFav = p.id in vm.favorites,
+                    custom = vm.overrides[p.id],
+                    onToggleFav = { vm.toggleFavorite(p) },
+                    onEditValue = { editing = p }
+                )
+            }
         }
+    }
+
+    val ep = editing
+    if (ep != null) {
+        ValueDialog(
+            p = ep,
+            custom = vm.overrides[ep.id],
+            onSave = { v -> vm.setCustomValue(ep, v) },
+            onReset = { vm.setCustomValue(ep, null) },
+            onDismiss = { editing = null }
+        )
     }
 
     if (sortDialog) {
@@ -219,10 +259,9 @@ fun ListScreen(vm: MainViewModel, onOpenFilters: () -> Unit) {
             onPick = { i ->
                 val cur = vm.filters
                 val field = fields[i]
-                vm.updateFilters(
-                    if (field == cur.sortBy) cur.copy(sortDesc = !cur.sortDesc)
-                    else cur.copy(sortBy = field, sortDesc = field != SortField.NAME)
-                )
+                if (field != cur.sortBy) {
+                    vm.updateFilters(cur.copy(sortBy = field, sortDesc = field != SortField.NAME))
+                }
             },
             onDismiss = { sortDialog = false }
         )
@@ -230,7 +269,13 @@ fun ListScreen(vm: MainViewModel, onOpenFilters: () -> Unit) {
 }
 
 @Composable
-fun PlayerCard(p: Player) {
+fun PlayerCard(
+    p: Player,
+    isFav: Boolean,
+    custom: Int?,
+    onToggleFav: () -> Unit,
+    onEditValue: () -> Unit
+) {
     val accent = posColor(p.position)
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
@@ -260,6 +305,14 @@ fun PlayerCard(p: Player) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                Text(
+                    if (isFav) "★" else "☆",
+                    fontSize = 28.sp,
+                    color = if (isFav) Color(0xFFFFD54F) else MaterialTheme.colorScheme.outline,
+                    modifier = Modifier
+                        .clickable { onToggleFav() }
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                )
                 Box(
                     Modifier
                         .background(accent.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
@@ -281,7 +334,7 @@ fun PlayerCard(p: Player) {
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "TOT ${p.total}",
                     fontFamily = FontFamily.Monospace,
@@ -296,17 +349,83 @@ fun PlayerCard(p: Player) {
                     textAlign = TextAlign.Center,
                     modifier = Modifier.weight(1f)
                 )
-                Text(
-                    formatValue(p.valueK),
-                    color = NeonGreen,
-                    fontFamily = FontFamily.Monospace,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clickable { onEditValue() }
+                        .padding(vertical = 6.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        formatValue(custom ?: p.valueK) + " ✎",
+                        color = if (custom != null) NeonPink else NeonGreen,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    if (custom != null) {
+                        Text(
+                            "orig. ${formatValue(p.valueK)}",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
     }
+}
+
+@Composable
+fun ValueDialog(
+    p: Player,
+    custom: Int?,
+    onSave: (Int) -> Unit,
+    onReset: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var text by remember { mutableStateOf((custom ?: p.valueK).toString()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(p.name) },
+        text = {
+            Column {
+                Text(
+                    "Valore originale: ${formatValue(p.valueK)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { s -> text = s.filter { it.isDigit() }.take(6) },
+                    label = { Text("Valore in migliaia (K)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val v = text.toIntOrNull()
+                if (v != null) {
+                    onSave(v)
+                    onDismiss()
+                }
+            }) { Text("Salva") }
+        },
+        dismissButton = {
+            Row {
+                if (custom != null) {
+                    TextButton(onClick = {
+                        onReset()
+                        onDismiss()
+                    }) { Text("Ripristina") }
+                }
+                TextButton(onClick = onDismiss) { Text("Annulla") }
+            }
+        }
+    )
 }
 
 @Composable
