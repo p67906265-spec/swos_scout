@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.SwosScout" parent="android:Theme.Material.NoActionBar" />
+</resources>
