@@ -1,7 +1,9 @@
 package it.paolo.swosscout
 
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.res.Configuration
+import android.content.res.Resources
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -42,10 +44,18 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Contesto con le risorse nella lingua scelta. Deve restare un ContextWrapper dell'activity,
+ * altrimenti Compose non ritrova l'activity (selettore file, ecc.) e l'app va in crash.
+ */
+private class LocalizedContext(base: Context, private val res: Resources) : ContextWrapper(base) {
+    override fun getResources(): Resources = res
+}
+
 private fun localizedContext(base: Context, lang: Lang): Context {
     val cfg = Configuration(base.resources.configuration)
     cfg.setLocale(Locale.forLanguageTag(lang.code))
-    return base.createConfigurationContext(cfg)
+    return LocalizedContext(base, base.createConfigurationContext(cfg).resources)
 }
 
 @Composable
