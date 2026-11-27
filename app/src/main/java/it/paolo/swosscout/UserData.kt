@@ -4,7 +4,7 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Preferiti e valori modificati dall'utente, salvati sul telefono. */
+/** Preferiti, valori modificati e impostazioni dell'utente, salvati sul telefono. */
 class UserData(context: Context) {
     private val prefs = context.getSharedPreferences("swos_user", Context.MODE_PRIVATE)
 
@@ -42,5 +42,24 @@ class UserData(context: Context) {
         val o = JSONObject()
         for ((k, v) in map) o.put(k, v)
         prefs.edit().putString("val", o.toString()).apply()
+    }
+
+    fun loadLang(): String = prefs.getString("lang", "it") ?: "it"
+
+    fun saveLang(code: String) {
+        prefs.edit().putString("lang", code).apply()
+    }
+
+    fun loadDark(): Boolean = prefs.getBoolean("dark", true)
+
+    fun saveDark(dark: Boolean) {
+        prefs.edit().putBoolean("dark", dark).apply()
+    }
+
+    fun loadTeam(): String? = prefs.getString("team", null)
+
+    fun saveTeam(key: String?) {
+        if (key == null) prefs.edit().remove("team").apply()
+        else prefs.edit().putString("team", key).apply()
     }
 }

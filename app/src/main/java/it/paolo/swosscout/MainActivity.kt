@@ -1,61 +1,22 @@
 package it.paolo.swosscout
 
+import android.content.Context
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,667 +25,118 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import java.util.Locale
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            SwosTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = Color.Transparent,
-                    contentColor = MaterialTheme.colorScheme.onBackground
-                ) {
-                    AppRoot()
-                }
+        setContent { AppEntry() }
+    }
+}
+
+private fun localizedContext(base: Context, lang: Lang): Context {
+    val cfg = Configuration(base.resources.configuration)
+    cfg.setLocale(Locale.forLanguageTag(lang.code))
+    return base.createConfigurationContext(cfg)
+}
+
+@Composable
+fun AppEntry(vm: MainViewModel = viewModel()) {
+    val base = LocalContext.current
+    val localized = remember(vm.lang, base) { localizedContext(base, vm.lang) }
+    CompositionLocalProvider(
+        LocalContext provides localized,
+        LocalConfiguration provides localized.resources.configuration
+    ) {
+        SwosTheme(dark = vm.dark) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.onBackground
+            ) {
+                AppRoot(vm)
             }
         }
     }
 }
 
+enum class Screen { LIST, FILTERS, MENU, TEAM, COMPARE }
+
 @Composable
-fun AppRoot(vm: MainViewModel = viewModel()) {
-    var showFilters by rememberSaveable { mutableStateOf(false) }
+fun AppRoot(vm: MainViewModel) {
+    var screen by rememberSaveable { mutableStateOf(Screen.LIST) }
+    var compareBack by rememberSaveable { mutableStateOf(Screen.MENU) }
     var splashDone by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         delay(2500)
         splashDone = true
     }
-    BackHandler(enabled = showFilters) { showFilters = false }
+    BackHandler(enabled = screen != Screen.LIST) {
+        screen = when (screen) {
+            Screen.TEAM -> Screen.MENU
+            Screen.COMPARE -> compareBack
+            else -> Screen.LIST
+        }
+    }
 
     val showSplash = !splashDone || vm.loading
 
     Box(
         Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(BgTop, BgBottom)))
+            .background(Brush.verticalGradient(listOf(Neon.bgTop, Neon.bgBottom)))
     ) {
         Crossfade(targetState = showSplash, animationSpec = tween(600), label = "root") { splash ->
             if (splash) {
                 SplashScreen()
             } else if (vm.error != null) {
                 Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                    Text("Errore: ${vm.error}")
+                    Text(stringResource(R.string.error_prefix, vm.error ?: ""))
                 }
-            } else if (showFilters) {
-                FilterScreen(vm) { showFilters = false }
             } else {
-                ListScreen(vm) { showFilters = true }
-            }
-        }
-    }
-}
-
-// ---------------------------------------------------------------- Lista
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ListScreen(vm: MainViewModel, onOpenFilters: () -> Unit) {
-    val f = vm.filters
-    var sortDialog by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<Player?>(null) }
-
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Image(
-                painter = painterResource(R.drawable.ic_launcher_foreground),
-                contentDescription = null,
-                modifier = Modifier.size(40.dp)
-            )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                "SWOS//SCOUT",
-                color = NeonCyan,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                letterSpacing = 3.sp
-            )
-        }
-        Row(
-            Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = f.query,
-                onValueChange = { vm.updateFilters(vm.filters.copy(query = it)) },
-                label = { Text("Cerca giocatore") },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(8.dp))
-            val n = f.activeCount()
-            Button(
-                onClick = onOpenFilters,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.height(56.dp)
-            ) { Text(if (n > 0) "FILTRI ($n)" else "FILTRI", fontWeight = FontWeight.Bold) }
-        }
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            FilterChip(
-                selected = f.onlyFavorites,
-                onClick = {
-                    val cur = vm.filters
-                    vm.updateFilters(cur.copy(onlyFavorites = !cur.onlyFavorites))
-                },
-                label = { Text("★ Solo preferiti (${vm.favorites.size})") }
-            )
-        }
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "${vm.results.size} / ${vm.totalPlayers}",
-                color = NeonGreen,
-                fontFamily = FontFamily.Monospace,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f)
-            )
-            TextButton(onClick = { sortDialog = true }) {
-                Text("Ordina: ${f.sortBy.label}")
-            }
-            TextButton(onClick = {
-                val cur = vm.filters
-                vm.updateFilters(cur.copy(sortDesc = !cur.sortDesc))
-            }) {
-                Text(if (f.sortDesc) "↓ Decr." else "↑ Cresc.", fontWeight = FontWeight.Bold)
-            }
-        }
-        if (vm.results.isEmpty()) {
-            Text(
-                "Nessun giocatore trovato.",
-                modifier = Modifier.padding(24.dp),
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
-        LazyColumn(
-            Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 16.dp)
-        ) {
-            items(vm.results) { p ->
-                PlayerCard(
-                    p = p,
-                    isFav = p.id in vm.favorites,
-                    custom = vm.overrides[p.id],
-                    onToggleFav = { vm.toggleFavorite(p) },
-                    onEditValue = { editing = p }
-                )
-            }
-        }
-    }
-
-    val ep = editing
-    if (ep != null) {
-        ValueDialog(
-            p = ep,
-            custom = vm.overrides[ep.id],
-            onSave = { v -> vm.setCustomValue(ep, v) },
-            onReset = { vm.setCustomValue(ep, null) },
-            onDismiss = { editing = null }
-        )
-    }
-
-    if (sortDialog) {
-        val fields = SortField.values()
-        OptionDialog(
-            title = "Ordina per",
-            options = fields.map { it.label },
-            onPick = { i ->
-                val cur = vm.filters
-                val field = fields[i]
-                if (field != cur.sortBy) {
-                    vm.updateFilters(cur.copy(sortBy = field, sortDesc = field != SortField.NAME))
-                }
-            },
-            onDismiss = { sortDialog = false }
-        )
-    }
-}
-
-@Composable
-fun PlayerCard(
-    p: Player,
-    isFav: Boolean,
-    custom: Int?,
-    onToggleFav: () -> Unit,
-    onEditValue: () -> Unit
-) {
-    val accent = posColor(p.position)
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(
-            1.dp,
-            Brush.horizontalGradient(listOf(accent.copy(alpha = 0.8f), accent.copy(alpha = 0.08f)))
-        )
-    ) {
-        Column(Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        p.name,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
+                when (screen) {
+                    Screen.LIST -> ListScreen(
+                        vm = vm,
+                        onOpenFilters = { screen = Screen.FILTERS },
+                        onOpenMenu = { screen = Screen.MENU },
+                        onCompare = {
+                            compareBack = Screen.LIST
+                            screen = Screen.COMPARE
+                        }
                     )
-                    Text(
-                        "${p.club} · ${p.country}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Screen.FILTERS -> FilterScreen(vm) { screen = Screen.LIST }
+                    Screen.MENU -> MenuScreen(
+                        vm = vm,
+                        onBack = { screen = Screen.LIST },
+                        onOpenTeam = { screen = Screen.TEAM },
+                        onOpenCompare = {
+                            compareBack = Screen.MENU
+                            screen = Screen.COMPARE
+                        }
                     )
-                    Text(
-                        "#${p.number} · ${p.nationality}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Screen.TEAM -> TeamScreen(
+                        vm = vm,
+                        onBack = { screen = Screen.MENU },
+                        onCompare = {
+                            compareBack = Screen.TEAM
+                            screen = Screen.COMPARE
+                        }
                     )
-                }
-                Text(
-                    if (isFav) "★" else "☆",
-                    fontSize = 28.sp,
-                    color = if (isFav) Color(0xFFFFD54F) else MaterialTheme.colorScheme.outline,
-                    modifier = Modifier
-                        .clickable { onToggleFav() }
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                )
-                Box(
-                    Modifier
-                        .background(accent.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-                        .border(1.dp, accent, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        p.position,
-                        color = accent,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
+                    Screen.COMPARE -> CompareScreen(
+                        vm = vm,
+                        onBack = { screen = compareBack },
+                        onOpenTeam = { screen = Screen.TEAM }
                     )
                 }
             }
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth()) {
-                SKILL_CODES.forEachIndexed { i, c ->
-                    SkillBar(c, p.skills[i], Modifier.weight(1f))
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "TOT ${p.total}",
-                    fontFamily = FontFamily.Monospace,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    if (p.keySkills.isEmpty()) "" else "KEY ${p.keySkills}",
-                    color = NeonPink,
-                    fontFamily = FontFamily.Monospace,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f)
-                )
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .clickable { onEditValue() }
-                        .padding(vertical = 6.dp),
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Text(
-                        formatValue(custom ?: p.valueK) + " ✎",
-                        color = if (custom != null) NeonPink else NeonGreen,
-                        fontFamily = FontFamily.Monospace,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    if (custom != null) {
-                        Text(
-                            "orig. ${formatValue(p.valueK)}",
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
         }
     }
-}
-
-@Composable
-fun ValueDialog(
-    p: Player,
-    custom: Int?,
-    onSave: (Int) -> Unit,
-    onReset: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    var text by remember { mutableStateOf((custom ?: p.valueK).toString()) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(p.name) },
-        text = {
-            Column {
-                Text(
-                    "Valore originale: ${formatValue(p.valueK)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { s -> text = s.filter { it.isDigit() }.take(6) },
-                    label = { Text("Valore in migliaia (K)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val v = text.toIntOrNull()
-                if (v != null) {
-                    onSave(v)
-                    onDismiss()
-                }
-            }) { Text("Salva") }
-        },
-        dismissButton = {
-            Row {
-                if (custom != null) {
-                    TextButton(onClick = {
-                        onReset()
-                        onDismiss()
-                    }) { Text("Ripristina") }
-                }
-                TextButton(onClick = onDismiss) { Text("Annulla") }
-            }
-        }
-    )
-}
-
-@Composable
-fun SkillBar(code: Char, value: Int, modifier: Modifier) {
-    val color = when {
-        value >= 6 -> NeonPink
-        value >= 4 -> NeonGreen
-        value >= 1 -> NeonCyan
-        else -> MaterialTheme.colorScheme.outline
-    }
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            code.toString(),
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(4.dp))
-        Box(
-            Modifier
-                .width(12.dp)
-                .height(40.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            if (value > 0) {
-                Box(
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .fillMaxHeight(value / 7f)
-                        .background(color)
-                )
-            }
-        }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            value.toString(),
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            color = color
-        )
-    }
-}
-
-// ---------------------------------------------------------------- Filtri
-
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
-@Composable
-fun FilterScreen(vm: MainViewModel, onClose: () -> Unit) {
-    val f = vm.filters
-
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "FILTRI",
-                color = NeonCyan,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 22.sp,
-                letterSpacing = 3.sp,
-                modifier = Modifier.weight(1f)
-            )
-            TextButton(onClick = {
-                val cur = vm.filters
-                vm.updateFilters(Filters(query = cur.query, sortBy = cur.sortBy, sortDesc = cur.sortDesc))
-            }) { Text("Azzera") }
-        }
-
-        Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)
-        ) {
-            SectionTitle("Ruolo")
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                POSITIONS.forEach { pos ->
-                    FilterChip(
-                        selected = pos in f.positions,
-                        onClick = {
-                            val cur = vm.filters
-                            vm.updateFilters(
-                                cur.copy(
-                                    positions = if (pos in cur.positions) cur.positions - pos
-                                    else cur.positions + pos
-                                )
-                            )
-                        },
-                        label = { Text(pos) }
-                    )
-                }
-            }
-            Text(
-                "G portiere · D difensore · RB/LB terzini · M centrocampista · RW/LW ali · A attaccante",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            SectionTitle("Abilità chiave (le deve avere tutte)")
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                SKILL_CODES.forEachIndexed { i, c ->
-                    FilterChip(
-                        selected = c in f.keySkills,
-                        onClick = {
-                            val cur = vm.filters
-                            vm.updateFilters(
-                                cur.copy(
-                                    keySkills = if (c in cur.keySkills) cur.keySkills - c
-                                    else cur.keySkills + c
-                                )
-                            )
-                        },
-                        label = { Text("$c ${SKILL_NAMES[i]}") }
-                    )
-                }
-            }
-
-            SectionTitle("Livello abilità (tocca Min e Max)")
-            SKILL_CODES.forEachIndexed { i, c ->
-                SkillRange("$c · ${SKILL_NAMES[i]}", f.skillRanges[i]) { r ->
-                    val cur = vm.filters
-                    vm.updateFilters(
-                        cur.copy(skillRanges = cur.skillRanges.toMutableList().also { it[i] = r })
-                    )
-                }
-            }
-
-            SectionTitle("Valore (in migliaia)")
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = f.valueMin,
-                    onValueChange = { s ->
-                        vm.updateFilters(vm.filters.copy(valueMin = s.filter { it.isDigit() }))
-                    },
-                    label = { Text("Min") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(8.dp))
-                OutlinedTextField(
-                    value = f.valueMax,
-                    onValueChange = { s ->
-                        vm.updateFilters(vm.filters.copy(valueMax = s.filter { it.isDigit() }))
-                    },
-                    label = { Text("Max") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            SectionTitle("Squadra e provenienza")
-            OutlinedTextField(
-                value = f.club,
-                onValueChange = { vm.updateFilters(vm.filters.copy(club = it)) },
-                label = { Text("Nome squadra") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(8.dp))
-            PickerField("Paese del club", f.country, vm.countries, "Tutti") {
-                vm.updateFilters(vm.filters.copy(country = it))
-            }
-            Spacer(Modifier.height(8.dp))
-            PickerField("Nazionalità", f.nationality, vm.nationalities, "Tutte") {
-                vm.updateFilters(vm.filters.copy(nationality = it))
-            }
-            Spacer(Modifier.height(16.dp))
-        }
-
-        Button(
-            onClick = onClose,
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth().padding(12.dp).height(52.dp)
-        ) { Text("MOSTRA ${vm.results.size} GIOCATORI", fontWeight = FontWeight.Bold) }
-    }
-}
-
-@Composable
-fun SectionTitle(text: String) {
-    Text(
-        text.uppercase(),
-        color = NeonCyan,
-        fontFamily = FontFamily.Monospace,
-        fontWeight = FontWeight.Bold,
-        fontSize = 12.sp,
-        letterSpacing = 1.5.sp,
-        modifier = Modifier.padding(top = 20.dp, bottom = 6.dp)
-    )
-}
-
-@Composable
-fun SkillRange(label: String, range: IntRange, onChange: (IntRange) -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Row(Modifier.fillMaxWidth()) {
-            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            Text(
-                if (range == 0..7) "tutti" else "${range.first}–${range.last}",
-                fontWeight = FontWeight.Bold,
-                color = NeonGreen,
-                fontFamily = FontFamily.Monospace
-            )
-        }
-        Spacer(Modifier.height(4.dp))
-        LevelRow("Min", range.first) { v -> onChange(v..maxOf(v, range.last)) }
-        Spacer(Modifier.height(4.dp))
-        LevelRow("Max", range.last) { v -> onChange(minOf(v, range.first)..v) }
-    }
-}
-
-@Composable
-fun LevelRow(title: String, selected: Int, onPick: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, Modifier.width(36.dp), style = MaterialTheme.typography.bodySmall)
-        for (v in 0..7) {
-            val isSel = v == selected
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 2.dp)
-                    .height(38.dp)
-                    .background(
-                        if (isSel) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surfaceVariant,
-                        RoundedCornerShape(8.dp)
-                    )
-                    .clickable { onPick(v) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    v.toString(),
-                    fontWeight = FontWeight.Bold,
-                    color = if (isSel) MaterialTheme.colorScheme.onPrimary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun PickerField(
-    label: String,
-    value: String?,
-    options: List<String>,
-    allLabel: String,
-    onSelect: (String?) -> Unit
-) {
-    var open by remember { mutableStateOf(false) }
-    OutlinedButton(
-        onClick = { open = true },
-        shape = RoundedCornerShape(14.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text("$label: ${value ?: allLabel}")
-    }
-    if (open) {
-        OptionDialog(
-            title = label,
-            options = listOf(allLabel) + options,
-            onPick = { i -> onSelect(if (i == 0) null else options[i - 1]) },
-            onDismiss = { open = false }
-        )
-    }
-}
-
-@Composable
-fun OptionDialog(
-    title: String,
-    options: List<String>,
-    onPick: (Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Chiudi") } },
-        title = { Text(title) },
-        text = {
-            LazyColumn(Modifier.heightIn(max = 420.dp)) {
-                itemsIndexed(options) { i, o ->
-                    TextButton(
-                        onClick = {
-                            onPick(i)
-                            onDismiss()
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(o, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
-                    }
-                }
-            }
-        }
-    )
 }

@@ -5,12 +5,26 @@ import java.util.Locale
 
 /** Abilità SWOS nell'ordine delle colonne del CSV: P V H T C S F. */
 val SKILL_CODES = listOf('P', 'V', 'H', 'T', 'C', 'S', 'F')
-val SKILL_NAMES = listOf(
-    "Passaggio", "Potenza", "Testa", "Contrasto", "Controllo", "Velocità", "Finalizzazione"
+val SKILL_NAME_RES = listOf(
+    R.string.skill_p, R.string.skill_v, R.string.skill_h, R.string.skill_t,
+    R.string.skill_c, R.string.skill_s, R.string.skill_f
 )
 
 /** Ruoli nell'ordine in cui compaiono tra i filtri. */
 val POSITIONS = listOf("G", "RB", "D", "LB", "RW", "M", "LW", "A")
+
+const val SIGNATURE = "Paolo Free 1.0"
+
+enum class Lang(val code: String, val label: String) {
+    IT("it", "Italiano"),
+    EN("en", "English"),
+    FR("fr", "Français"),
+    DE("de", "Deutsch");
+
+    companion object {
+        fun fromCode(code: String): Lang = values().firstOrNull { it.code == code } ?: IT
+    }
+}
 
 class Player(
     val country: String,
@@ -32,17 +46,21 @@ class Player(
     val id: String = "$country|$club|$number|$name"
 }
 
-enum class SortField(val label: String) {
-    NAME("Nome"),
-    VALUE("Valore"),
-    TOTAL("Totale abilità"),
-    P("Passaggio"),
-    V("Potenza"),
-    H("Testa"),
-    T("Contrasto"),
-    C("Controllo"),
-    S("Velocità"),
-    F("Finalizzazione")
+data class ClubEntry(val key: String, val label: String)
+
+data class ImportStatus(val ok: Boolean, val count: Int)
+
+enum class SortField(val labelRes: Int) {
+    NAME(R.string.sort_name),
+    VALUE(R.string.sort_value),
+    TOTAL(R.string.sort_total),
+    P(R.string.skill_p),
+    V(R.string.skill_v),
+    H(R.string.skill_h),
+    T(R.string.skill_t),
+    C(R.string.skill_c),
+    S(R.string.skill_s),
+    F(R.string.skill_f)
 }
 
 data class Filters(
@@ -71,8 +89,8 @@ data class Filters(
     ).count { it }
 }
 
-private fun parseLine(line: String): List<String> {
-    if (!line.contains('"')) return line.split(',')
+private fun parseLine(line: String, delim: Char): List<String> {
+    if (!line.contains('"')) return line.split(delim)
     val res = ArrayList<String>()
     val sb = StringBuilder()
     var inQuotes = false
@@ -86,7 +104,7 @@ private fun parseLine(line: String): List<String> {
             } else {
                 inQuotes = !inQuotes
             }
-        } else if (ch == ',' && !inQuotes) {
+        } else if (ch == delim && !inQuotes) {
             res.add(sb.toString())
             sb.setLength(0)
         } else {
@@ -98,14 +116,18 @@ private fun parseLine(line: String): List<String> {
     return res
 }
 
-/** Legge il CSV (con intestazione) cercando le colonne per nome. */
+/** Legge il CSV (con intestazione, separatore virgola o punto e virgola) cercando le colonne per nome. */
 fun parseCsv(input: InputStream): List<Player> {
     val out = ArrayList<Player>(60000)
     input.bufferedReader(Charsets.UTF_8).useLines { lines ->
         var idx: Map<String, Int>? = null
+        var delim = ','
         for (raw in lines) {
             if (raw.isBlank()) continue
-            val cols = parseLine(raw)
+            if (idx == null) {
+                delim = if (raw.count { it == ';' } > raw.count { it == ',' }) ';' else ','
+            }
+            val cols = parseLine(raw, delim)
             val map = idx
             if (map == null) {
                 idx = cols.mapIndexed { i, h -> h.trim().removePrefix("\uFEFF").lowercase() to i }.toMap()
