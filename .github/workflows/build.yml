@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,3 +30,10 @@ jobs:
         with:
           name: swos-scout-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Pubblica APK nella Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Ultima Build Disponibile
+          files: app/build/outputs/apk/debug/*.apk
