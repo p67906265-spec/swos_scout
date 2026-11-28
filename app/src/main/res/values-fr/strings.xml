@@ -94,6 +94,8 @@
     <string name="tcmp_roles">Par poste (joueurs · moyenne)</string>
     <string name="tcmp_empty">Choisissez une autre équipe pour voir la comparaison.</string>
     <string name="tcmp_need_team">Sélectionnez d\'abord votre équipe dans Mon équipe.</string>
+    <string name="tcmp_roster">Joueurs et valeurs : %1$s</string>
+    <string name="tcmp_roster_hint">Touchez ⇄ pour comparer un joueur avec l\'un des vôtres, ✎ pour modifier la valeur.</string>
     <string name="picker_search">Rechercher par nom</string>
     <string name="picker_mine_title">Choisissez votre joueur</string>
     <string name="picker_scout_title">Choisissez le candidat</string>

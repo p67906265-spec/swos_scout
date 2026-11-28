@@ -153,7 +153,11 @@ fun AppRoot(vm: MainViewModel) {
                     Screen.TEAMCMP -> TeamCompareScreen(
                         vm = vm,
                         onBack = { screen = teamCmpBack },
-                        onOpenTeam = { screen = Screen.TEAM }
+                        onOpenTeam = { screen = Screen.TEAM },
+                        onCompare = {
+                            compareBack = Screen.TEAMCMP
+                            screen = Screen.COMPARE
+                        }
                     )
                     Screen.COMPARE -> CompareScreen(
                         vm = vm,

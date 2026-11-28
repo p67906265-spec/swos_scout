@@ -46,8 +46,14 @@ private fun signed1(d: Double): String =
     if (d > 0.049) "+" + fmt1(d) else if (d < -0.049) "−" + fmt1(-d) else "="
 
 @Composable
-fun TeamCompareScreen(vm: MainViewModel, onBack: () -> Unit, onOpenTeam: () -> Unit) {
+fun TeamCompareScreen(
+    vm: MainViewModel,
+    onBack: () -> Unit,
+    onOpenTeam: () -> Unit,
+    onCompare: () -> Unit
+) {
     var pickClub by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<Player?>(null) }
     val noTeam = vm.myTeamKey == null
     val hasOther = vm.otherTeamKey != null
     val a = remember(vm.myPlayers, vm.overrides) { teamStats(vm.myPlayers) { vm.valueOf(it) } }
@@ -98,11 +104,33 @@ fun TeamCompareScreen(vm: MainViewModel, onBack: () -> Unit, onOpenTeam: () -> U
                     )
                 } else {
                     TeamCompareBody(a, b)
+                    SectionTitle(stringResource(R.string.tcmp_roster, vm.otherLabel()))
+                    Text(
+                        stringResource(R.string.tcmp_roster_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    vm.otherPlayers.forEach { p ->
+                        PlayerRow(
+                            p = p,
+                            isFav = p.id in vm.favorites,
+                            custom = vm.overrides[p.id],
+                            onToggleFav = { vm.toggleFavorite(p) },
+                            onEditValue = { editing = p },
+                            onCompare = {
+                                vm.pickScout(p)
+                                onCompare()
+                            }
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(24.dp))
         }
     }
+
+    ValueEditor(vm, editing) { editing = null }
 
     if (pickClub) {
         ClubPickerDialog(

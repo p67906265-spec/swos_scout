@@ -95,6 +95,8 @@
     <string name="tcmp_roles">Per ruolo (giocatori · media abilità)</string>
     <string name="tcmp_empty">Scegli un\'altra squadra per vedere il confronto.</string>
     <string name="tcmp_need_team">Seleziona prima la tua squadra in La mia squadra.</string>
+    <string name="tcmp_roster">Giocatori e valori: %1$s</string>
+    <string name="tcmp_roster_hint">Tocca ⇄ per confrontare un giocatore con uno dei tuoi, ✎ per cambiare il valore.</string>
     <string name="picker_search">Cerca per nome</string>
     <string name="picker_mine_title">Scegli il tuo giocatore</string>
     <string name="picker_scout_title">Scegli il candidato</string>
