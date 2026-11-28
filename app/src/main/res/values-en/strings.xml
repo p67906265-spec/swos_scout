@@ -20,7 +20,8 @@
     <string name="loading">LOADING...</string>
     <string name="orig_value">orig. %1$s</string>
     <string name="tot_label">TOT %1$d</string>
-    <string name="key_label">KEY %1$s</string>
+    <string name="key_label">SKILL %1$s</string>
+    <string name="key_title">Key skills</string>
     <string name="value_original">Original value: %1$s</string>
     <string name="value_in_k">Value in thousands (K)</string>
     <string name="reset">Reset</string>

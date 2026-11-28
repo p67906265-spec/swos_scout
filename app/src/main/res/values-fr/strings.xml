@@ -20,7 +20,8 @@
     <string name="loading">CHARGEMENT...</string>
     <string name="orig_value">orig. %1$s</string>
     <string name="tot_label">TOT %1$d</string>
-    <string name="key_label">CLÉ %1$s</string>
+    <string name="key_label">SKILL %1$s</string>
+    <string name="key_title">Compétences clés</string>
     <string name="value_original">Valeur d\'origine : %1$s</string>
     <string name="value_in_k">Valeur en milliers (K)</string>
     <string name="reset">Réinitialiser</string>

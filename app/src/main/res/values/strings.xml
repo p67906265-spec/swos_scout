@@ -21,7 +21,8 @@
     <string name="loading">CARICAMENTO...</string>
     <string name="orig_value">orig. %1$s</string>
     <string name="tot_label">TOT %1$d</string>
-    <string name="key_label">CHIAVE %1$s</string>
+    <string name="key_label">SKILL %1$s</string>
+    <string name="key_title">Abilità chiave</string>
     <string name="value_original">Valore originale: %1$s</string>
     <string name="value_in_k">Valore in migliaia (K)</string>
     <string name="reset">Azzera</string>

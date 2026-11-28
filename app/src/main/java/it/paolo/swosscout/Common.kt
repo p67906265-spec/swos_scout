@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -89,6 +90,7 @@ fun PlayerCard(
     onCompare: () -> Unit
 ) {
     val accent = posColor(p.position)
+    var showKeys by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
         shape = RoundedCornerShape(16.dp),
@@ -167,7 +169,11 @@ fun PlayerCard(
                     fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f)
+                    textDecoration = if (p.keySkills.isEmpty()) TextDecoration.None else TextDecoration.Underline,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(enabled = p.keySkills.isNotEmpty()) { showKeys = true }
+                        .padding(vertical = 6.dp)
                 )
                 Column(
                     Modifier
@@ -193,6 +199,37 @@ fun PlayerCard(
                 }
             }
         }
+    }
+
+    if (showKeys) {
+        AlertDialog(
+            onDismissRequest = { showKeys = false },
+            confirmButton = {
+                TextButton(onClick = { showKeys = false }) { Text(stringResource(R.string.close)) }
+            },
+            title = { Text(stringResource(R.string.key_title)) },
+            text = {
+                Column {
+                    p.keySkills.forEach { ch ->
+                        val i = SKILL_CODES.indexOf(ch)
+                        Row(
+                            Modifier.padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                ch.toString(),
+                                color = Neon.pink,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                modifier = Modifier.width(32.dp)
+                            )
+                            Text(if (i >= 0) stringResource(SKILL_NAME_RES[i]) else "?")
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 
