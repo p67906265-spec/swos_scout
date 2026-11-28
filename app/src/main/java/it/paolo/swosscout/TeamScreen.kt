@@ -31,7 +31,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun TeamScreen(vm: MainViewModel, onBack: () -> Unit, onCompare: () -> Unit) {
+fun TeamScreen(
+    vm: MainViewModel,
+    onBack: () -> Unit,
+    onCompare: () -> Unit,
+    onCompareTeams: () -> Unit
+) {
     var pickClub by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Player?>(null) }
 
@@ -76,6 +81,14 @@ fun TeamScreen(vm: MainViewModel, onBack: () -> Unit, onCompare: () -> Unit) {
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(onClick = { pickClub = true }, shape = RoundedCornerShape(12.dp)) {
                         Text(stringResource(R.string.team_change))
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedButton(
+                        onClick = onCompareTeams,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.tcmp_button))
                     }
                 }
             }

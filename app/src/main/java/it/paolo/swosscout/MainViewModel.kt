@@ -63,6 +63,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var compareScout by mutableStateOf<Player?>(null)
         private set
+    var otherTeamKey by mutableStateOf<String?>(null)
+        private set
+    var otherPlayers by mutableStateOf<List<Player>>(emptyList())
+        private set
 
     private var all: List<Player> = emptyList()
     private var job: Job? = null
@@ -231,19 +235,28 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun teamLabel(): String = clubs.firstOrNull { it.key == myTeamKey }?.label ?: ""
 
     private fun recomputeTeam() {
-        val key = myTeamKey
-        if (key == null) {
-            myPlayers = emptyList()
-            return
-        }
+        myPlayers = playersOf(myTeamKey)
+        otherPlayers = playersOf(otherTeamKey)
+    }
+
+    private fun playersOf(key: String?): List<Player> {
+        if (key == null) return emptyList()
         val country = key.substringBefore('|')
         val club = key.substringAfter('|')
-        myPlayers = all
+        return all
             .filter { it.country == country && it.club == club }
             .sortedWith(
                 compareBy<Player> { POSITIONS.indexOf(it.position) }.thenByDescending { it.total }
             )
     }
+
+    /** Seconda squadra per il confronto tra squadre. */
+    fun chooseOtherTeam(key: String?) {
+        otherTeamKey = key
+        otherPlayers = playersOf(key)
+    }
+
+    fun otherLabel(): String = clubs.firstOrNull { it.key == otherTeamKey }?.label ?: ""
 
     fun pickMine(p: Player) {
         compareMine = p

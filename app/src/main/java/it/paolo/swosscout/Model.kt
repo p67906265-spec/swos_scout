@@ -207,3 +207,29 @@ fun formatValue(k: Int): String =
     } else {
         "$k K"
     }
+
+fun fmt1(x: Double): String = String.format(Locale.ITALY, "%.1f", x)
+
+/** Statistiche di una squadra; le medie delle abilità escludono i portieri (nel CSV hanno tutte le abilità a 0). */
+class TeamStats(
+    val count: Int,
+    val totalValue: Int,
+    val skillAvg: DoubleArray,
+    val totalAvg: Double,
+    val roleCount: Map<String, Int>,
+    val roleAvg: Map<String, Double>
+)
+
+fun teamStats(players: List<Player>, valueOf: (Player) -> Int): TeamStats {
+    val outfield = players.filter { it.position != "G" }
+    val skillAvg = DoubleArray(7) { i ->
+        if (outfield.isEmpty()) 0.0 else outfield.sumOf { it.skills[i] }.toDouble() / outfield.size
+    }
+    val totalAvg = if (outfield.isEmpty()) 0.0 else outfield.sumOf { it.total }.toDouble() / outfield.size
+    val roleCount = POSITIONS.associateWith { pos -> players.count { it.position == pos } }
+    val roleAvg = POSITIONS.associateWith { pos ->
+        val list = players.filter { it.position == pos }
+        if (pos == "G" || list.isEmpty()) 0.0 else list.sumOf { it.total }.toDouble() / list.size
+    }
+    return TeamStats(players.size, players.sumOf { valueOf(it) }, skillAvg, totalAvg, roleCount, roleAvg)
+}

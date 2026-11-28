@@ -78,12 +78,13 @@ fun AppEntry(vm: MainViewModel = viewModel()) {
     }
 }
 
-enum class Screen { LIST, FILTERS, MENU, TEAM, COMPARE }
+enum class Screen { LIST, FILTERS, MENU, TEAM, COMPARE, TEAMCMP }
 
 @Composable
 fun AppRoot(vm: MainViewModel) {
     var screen by rememberSaveable { mutableStateOf(Screen.LIST) }
     var compareBack by rememberSaveable { mutableStateOf(Screen.MENU) }
+    var teamCmpBack by rememberSaveable { mutableStateOf(Screen.MENU) }
     var splashDone by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         delay(2500)
@@ -93,6 +94,7 @@ fun AppRoot(vm: MainViewModel) {
         screen = when (screen) {
             Screen.TEAM -> Screen.MENU
             Screen.COMPARE -> compareBack
+            Screen.TEAMCMP -> teamCmpBack
             else -> Screen.LIST
         }
     }
@@ -130,6 +132,10 @@ fun AppRoot(vm: MainViewModel) {
                         onOpenCompare = {
                             compareBack = Screen.MENU
                             screen = Screen.COMPARE
+                        },
+                        onOpenTeamCompare = {
+                            teamCmpBack = Screen.MENU
+                            screen = Screen.TEAMCMP
                         }
                     )
                     Screen.TEAM -> TeamScreen(
@@ -138,7 +144,16 @@ fun AppRoot(vm: MainViewModel) {
                         onCompare = {
                             compareBack = Screen.TEAM
                             screen = Screen.COMPARE
+                        },
+                        onCompareTeams = {
+                            teamCmpBack = Screen.TEAM
+                            screen = Screen.TEAMCMP
                         }
+                    )
+                    Screen.TEAMCMP -> TeamCompareScreen(
+                        vm = vm,
+                        onBack = { screen = teamCmpBack },
+                        onOpenTeam = { screen = Screen.TEAM }
                     )
                     Screen.COMPARE -> CompareScreen(
                         vm = vm,

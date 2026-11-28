@@ -40,7 +40,8 @@ fun MenuScreen(
     vm: MainViewModel,
     onBack: () -> Unit,
     onOpenTeam: () -> Unit,
-    onOpenCompare: () -> Unit
+    onOpenCompare: () -> Unit,
+    onOpenTeamCompare: () -> Unit
 ) {
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) vm.importCsv(uri)
@@ -61,6 +62,11 @@ fun MenuScreen(
                 title = stringResource(R.string.menu_compare),
                 subtitle = stringResource(R.string.menu_compare_sub),
                 onClick = onOpenCompare
+            )
+            MenuItem(
+                title = stringResource(R.string.menu_team_compare),
+                subtitle = stringResource(R.string.menu_team_compare_sub),
+                onClick = onOpenTeamCompare
             )
             MenuItem(
                 title = stringResource(R.string.menu_csv),
